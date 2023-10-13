@@ -1,17 +1,25 @@
 package io.axoniq.demo.giftcard;
 
-import com.thoughtworks.xstream.XStream;
 import org.axonframework.common.caching.Cache;
 import org.axonframework.common.caching.WeakReferenceCache;
+import org.axonframework.common.transaction.TransactionManager;
 import org.axonframework.config.Configurer;
 import org.axonframework.config.ConfigurerModule;
+import org.axonframework.eventhandling.EventBus;
+import org.axonframework.eventsourcing.eventstore.EventStorageEngine;
+import org.axonframework.extensions.mongo.MongoTemplate;
+import org.axonframework.extensions.mongo.eventsourcing.eventstore.MongoEventStorageEngine;
+import org.axonframework.extensions.mongo.eventsourcing.eventstore.StorageStrategy;
 import org.axonframework.lifecycle.Phase;
 import org.axonframework.messaging.Message;
 import org.axonframework.messaging.interceptors.LoggingInterceptor;
+import org.axonframework.serialization.Serializer;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 
 @Configuration
 public class AxonConfig {
@@ -27,9 +35,27 @@ public class AxonConfig {
     }
 
     @Bean
-    @Profile("command")
     public Cache giftCardCache() {
         return new WeakReferenceCache();
+    }
+
+    @Bean
+    public EventStorageEngine eventStorageEngine(
+            MongoTemplate mongoTemplate,
+            TransactionManager transactionManager,
+            Serializer snapshotSerializer,
+            @Qualifier("eventSerializer") Serializer serializer,
+            StorageStrategy storageStrategy,
+            org.axonframework.config.Configuration configuration
+    ) {
+        return MongoEventStorageEngine.builder()
+                                      .mongoTemplate(mongoTemplate)
+                                      .transactionManager(transactionManager)
+                                      .snapshotSerializer(snapshotSerializer)
+                                      .eventSerializer(serializer)
+                                      .storageStrategy(storageStrategy)
+                                      .upcasterChain(configuration.upcasterChain())
+                                      .build();
     }
 
     /**
